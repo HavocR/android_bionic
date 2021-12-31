@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2019 The Android Open Source Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,14 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#include <string.h>
-#include <stdio.h>
-#include <utmp.h>
 
+#pragma once
 
-void pututline(struct utmp* utmp)
-{
-    FILE* f;
-    struct utmp u;
-    long i;
+#include <sys/cdefs.h>
 
-    if (!(f = fopen(_PATH_UTMP, "w+e")))
-        return;
+#if __ANDROID_API__ < 28
 
-    while (fread(&u, sizeof(struct utmp), 1, f) == 1)
-    {
-        if (!strncmp(utmp->ut_line, u.ut_line, sizeof(u.ut_line) -1))
-        {
-            if ((i = ftell(f)) < 0)
-                goto ret;
-            if (fseek(f, i - sizeof(struct utmp), SEEK_SET) < 0)
-                goto ret;
-            fwrite(utmp, sizeof(struct utmp), 1, f);
-            goto ret;
-        }
-    }
+#define __BIONIC_SWAB_INLINE static __inline
+#include <bits/swab.h>
 
-
-    fclose(f);
-
-    if (!(f = fopen(_PATH_UTMP, "w+e")))
-        return;
-    fwrite(utmp, sizeof(struct utmp), 1, f);
-
-ret:
-    fclose(f);
-}
+#endif

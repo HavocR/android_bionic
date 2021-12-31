@@ -7,7 +7,6 @@ libc_common_src_files = [
     "bionic/fts.c",
     "bionic/initgroups.c",
     "bionic/isatty.c",
-    "bionic/pututline.c",
     "bionic/sched_cpualloc.c",
     "bionic/sched_cpucount.c",
     "stdio/fmemopen.cpp",
@@ -108,18 +107,6 @@ libc_scudo_product_variables = {
     },
 }
 
-libc32_scudo_product_variables = {
-    malloc_not_svelte_libc32: {
-        cflags: ["-DUSE_SCUDO"],
-        whole_static_libs: ["libscudo"],
-        exclude_static_libs: [
-            "libjemalloc5",
-            "libc_jemalloc_wrapper",
-        ],
-    },
-}
-
-
 // Defaults for native allocator libs/includes to make it
 // easier to change.
 // To disable scudo for the non-svelte config remove the line:
@@ -134,14 +121,6 @@ cc_defaults {
         "libc_jemalloc_wrapper",
     ],
     header_libs: ["gwp_asan_headers"],
-    multilib: {
-        lib64: {
-            product_variables: libc_scudo_product_variables,
-        },
-        lib32: {
-            product_variables: libc32_scudo_product_variables,
-        }
-    },
 }
 
 // Functions not implemented by jemalloc directly, or that need to
@@ -403,7 +382,6 @@ cc_library_static {
         "upstream-netbsd/lib/libc/gen/nice.c",
         "upstream-netbsd/lib/libc/gen/psignal.c",
         "upstream-netbsd/lib/libc/gen/utime.c",
-        "upstream-netbsd/lib/libc/gen/utmp.c",
         "upstream-netbsd/lib/libc/inet/nsap_addr.c",
         "upstream-netbsd/lib/libc/regex/regcomp.c",
         "upstream-netbsd/lib/libc/regex/regerror.c",
@@ -778,6 +756,9 @@ cc_library_static {
 
                 "arch-arm/cortex-a55/bionic/__strcat_chk.S",
                 "arch-arm/cortex-a55/bionic/__strcpy_chk.S",
+
+                "arch-arm/cortex-a77/bionic/__strcat_chk.S",
+                "arch-arm/cortex-a77/bionic/__strcpy_chk.S",
             ],
         },
         arm64: {
@@ -863,6 +844,8 @@ cc_library_static {
 
                 "arch-arm/cortex-a55/bionic/memcpy.S",
 
+                "arch-arm/cortex-a77/bionic/memcpy.S",
+
                 "arch-arm/kryo/bionic/memcpy.S",
             ],
         },
@@ -870,10 +853,13 @@ cc_library_static {
             srcs: [
                 "arch-arm64/generic/bionic/memcpy.S",
                 "arch-arm64/generic/bionic/memmove.S",
+                "arch-arm64/generic/bionic/memrchr.S",
                 "arch-arm64/generic/bionic/memset.S",
+                "arch-arm64/generic/bionic/strchrnul.S",
                 "arch-arm64/generic/bionic/wmemmove.S",
 
                 "arch-arm64/bionic/__bionic_clone.S",
+                "arch-arm64/bionic/__restore_rt.S",
                 "arch-arm64/bionic/_exit_with_stack_teardown.S",
                 "arch-arm64/bionic/setjmp.S",
                 "arch-arm64/bionic/syscall.S",
@@ -1044,6 +1030,7 @@ cc_library_static {
         "bionic/error.cpp",
         "bionic/eventfd.cpp",
         "bionic/exec.cpp",
+        "bionic/explicit_bzero.cpp",
         "bionic/faccessat.cpp",
         "bionic/fchmod.cpp",
         "bionic/fchmodat.cpp",
@@ -1167,6 +1154,7 @@ cc_library_static {
         "bionic/umount.cpp",
         "bionic/unlink.cpp",
         "bionic/usleep.cpp",
+        "bionic/utmp.cpp",
         "bionic/wait.cpp",
         "bionic/wchar.cpp",
         "bionic/wchar_l.cpp",
@@ -1179,6 +1167,14 @@ cc_library_static {
         // which will be overridden by the actual one in libc.so.
         "bionic/icu_static.cpp",
     ],
+
+    arch: {
+        arm64: {
+            exclude_srcs: [
+                "bionic/strchrnul.cpp",
+            ],
+        },
+    },
 
     multilib: {
         lib32: {
@@ -1617,6 +1613,7 @@ cc_library {
             "gwp_asan",
             "libc_init_dynamic",
             "libc_common_shared",
+            "libunwind-exported",
         ],
     },
 
@@ -1653,11 +1650,14 @@ cc_library {
             ldflags: ["-Wl,--hash-style=both"],
 
             version_script: ":libc.arm.map",
+            no_libcrt: true,
 
             shared: {
                 srcs: [":libc_sources_shared_arm"],
                 // special for arm
                 cflags: ["-DCRT_LEGACY_WORKAROUND"],
+                // For backwards-compatibility, some arm32 builtins are exported from libc.so.
+                static_libs: ["libclang_rt.builtins-arm-android-exported"],
             },
 
             // Arm 32 bit does not produce complete exidx unwind information
@@ -1667,8 +1667,6 @@ cc_library {
             strip: {
                 keep_symbols_and_debug_frame: true,
             },
-
-            whole_static_libs: [ "libunwind_llvm" ],
         },
         arm64: {
             version_script: ":libc.arm64.map",
@@ -1678,8 +1676,6 @@ cc_library {
             strip: {
                 keep_symbols: true,
             },
-
-            whole_static_libs: [ "libgcc_stripped" ],
         },
         x86: {
             // TODO: This is to work around b/24465209. Remove after root cause is fixed.
@@ -1687,14 +1683,18 @@ cc_library {
             ldflags: ["-Wl,--hash-style=both"],
 
             version_script: ":libc.x86.map",
+            no_libcrt: true,
+
+            shared: {
+                // For backwards-compatibility, some x86 builtins are exported from libc.so.
+                static_libs: ["libclang_rt.builtins-i686-android-exported"],
+            },
 
             // Leave the symbols in the shared library so that stack unwinders can produce
             // meaningful name resolution.
             strip: {
                 keep_symbols: true,
             },
-
-            whole_static_libs: [ "libgcc_stripped" ],
         },
         x86_64: {
             version_script: ":libc.x86_64.map",
@@ -1704,8 +1704,6 @@ cc_library {
             strip: {
                 keep_symbols: true,
             },
-
-            whole_static_libs: [ "libgcc_stripped" ],
         },
     },
 
