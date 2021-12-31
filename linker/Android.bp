@@ -46,6 +46,8 @@ cc_object {
 
     prefix_symbols: "__dlwrap_",
 
+    header_libs: ["libc_headers"],
+
     // We need to access Bionic private headers in the linker.
     include_dirs: ["bionic/libc"],
 }
@@ -353,7 +355,35 @@ cc_binary {
             static_libs: [
                 "liblinker_debuggerd_stub",
             ],
-        }
+        },
+        android_arm64: {
+            pgo: {
+                profile_file: "bionic/linker_arm_arm64.profdata",
+            },
+        },
+        android_arm: {
+            pgo: {
+                profile_file: "bionic/linker_arm_arm64.profdata",
+            },
+        },
+        android_x86_64: {
+            pgo: {
+                profile_file: "bionic/linker_x86_x86_64.profdata",
+            },
+        },
+        android_x86: {
+            pgo: {
+                profile_file: "bionic/linker_x86_x86_64.profdata",
+            },
+        },
+    },
+
+    pgo: {
+        sampling: true,
+    },
+
+    lto: {
+        never: true,
     },
 }
 
@@ -412,6 +442,7 @@ cc_library {
 
     nocrt: true,
     system_shared_libs: [],
+    header_libs: ["libc_headers"],
 
     // Opt out of native_coverage when opting out of system_shared_libs
     native_coverage: false,
@@ -424,6 +455,10 @@ cc_library {
         "//apex_available:platform",
         "com.android.runtime",
     ],
+
+    lto: {
+        never: true,
+    },
 }
 
 cc_test {

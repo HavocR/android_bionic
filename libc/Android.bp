@@ -65,7 +65,13 @@ cc_defaults {
         "bionic/libc/async_safe/include",
     ],
 
-    header_libs: ["gwp_asan_headers"],
+    header_libs: [
+        "libc_headers",
+        "gwp_asan_headers",
+    ],
+    export_header_lib_headers: [
+        "libc_headers",
+    ],
 
     stl: "none",
     system_shared_libs: [],
@@ -259,7 +265,7 @@ cc_library_static {
 
     defaults: ["libc_defaults"],
     srcs: [
-        "dns/**/*.c",
+        "dns/**/*.c*",
 
         "upstream-netbsd/lib/libc/isc/ev_streams.c",
         "upstream-netbsd/lib/libc/isc/ev_timers.c",
@@ -271,6 +277,7 @@ cc_library_static {
         "-Wno-unused-parameter",
         "-include netbsd-compat.h",
         "-Wframe-larger-than=66000",
+        "-include private/bsd_sys_param.h",
     ],
 
     local_include_dirs: [
@@ -509,8 +516,6 @@ cc_library_static {
         "upstream-openbsd/lib/libc/stdio/open_wmemstream.c",
         "upstream-openbsd/lib/libc/stdio/rget.c",
         "upstream-openbsd/lib/libc/stdio/setvbuf.c",
-        "upstream-openbsd/lib/libc/stdio/tempnam.c",
-        "upstream-openbsd/lib/libc/stdio/tmpnam.c",
         "upstream-openbsd/lib/libc/stdio/ungetc.c",
         "upstream-openbsd/lib/libc/stdio/ungetwc.c",
         "upstream-openbsd/lib/libc/stdio/vasprintf.c",
@@ -532,6 +537,7 @@ cc_library_static {
         "upstream-openbsd/lib/libc/stdlib/llabs.c",
         "upstream-openbsd/lib/libc/stdlib/lldiv.c",
         "upstream-openbsd/lib/libc/stdlib/lsearch.c",
+        "upstream-openbsd/lib/libc/stdlib/recallocarray.c",
         "upstream-openbsd/lib/libc/stdlib/remque.c",
         "upstream-openbsd/lib/libc/stdlib/setenv.c",
         "upstream-openbsd/lib/libc/stdlib/tfind.c",
@@ -573,6 +579,7 @@ cc_library_static {
     srcs: [
         "stdio/vfprintf.cpp",
         "stdio/vfwprintf.cpp",
+        "upstream-openbsd/lib/libc/string/memmem.c",
         "upstream-openbsd/lib/libc/string/strstr.c",
     ],
     cflags: [
@@ -582,6 +589,7 @@ cc_library_static {
     ],
 
     local_include_dirs: [
+        "private",
         "upstream-openbsd/android/include/",
         "upstream-openbsd/lib/libc/include/",
         "upstream-openbsd/lib/libc/gdtoa/",
@@ -622,11 +630,13 @@ cc_library_static {
                 "upstream-openbsd/lib/libc/string/strcpy.c",
                 "upstream-openbsd/lib/libc/string/stpcpy.c",
                 "upstream-openbsd/lib/libc/string/strcat.c",
+                "upstream-openbsd/lib/libc/string/memchr.c",
             ],
         },
         arm64: {
             exclude_srcs: [
                 "upstream-openbsd/lib/libc/string/memchr.c",
+                "upstream-openbsd/lib/libc/string/memrchr.c",
                 "upstream-openbsd/lib/libc/string/stpcpy.c",
                 "upstream-openbsd/lib/libc/string/strcpy.c",
                 "upstream-openbsd/lib/libc/string/strncmp.c",
@@ -796,6 +806,7 @@ cc_library_static {
         "bionic/android_set_abort_message.cpp",
 
         "bionic/strchr.cpp",
+        "bionic/strchrnul.cpp",
         "bionic/strnlen.c",
         "bionic/strrchr.cpp",
     ],
@@ -804,6 +815,7 @@ cc_library_static {
         arm: {
             asflags: libc_common_flags + ["-mno-restrict-it"],
             srcs: [
+                "arch-arm/generic/bionic/memchr.S",
                 "arch-arm/generic/bionic/memcmp.S",
                 "arch-arm/generic/bionic/memmove.S",
                 "arch-arm/generic/bionic/memset.S",
@@ -856,27 +868,10 @@ cc_library_static {
         },
         arm64: {
             srcs: [
-                "arch-arm64/generic/bionic/memcmp.S",
                 "arch-arm64/generic/bionic/memcpy.S",
                 "arch-arm64/generic/bionic/memmove.S",
                 "arch-arm64/generic/bionic/memset.S",
-                "arch-arm64/generic/bionic/stpcpy.S",
-                "arch-arm64/generic/bionic/strcpy.S",
                 "arch-arm64/generic/bionic/wmemmove.S",
-
-                "arch-arm64/default/bionic/memchr.S",
-                "arch-arm64/default/bionic/strchr.S",
-                "arch-arm64/default/bionic/strcmp.S",
-                "arch-arm64/default/bionic/strlen.S",
-                "arch-arm64/default/bionic/strncmp.S",
-                "arch-arm64/default/bionic/strnlen.S",
-
-                "arch-arm64/mte/bionic/memchr.c",
-                "arch-arm64/mte/bionic/strchr.cpp",
-                "arch-arm64/mte/bionic/strcmp.c",
-                "arch-arm64/mte/bionic/strlen.c",
-                "arch-arm64/mte/bionic/strncmp.c",
-                "arch-arm64/mte/bionic/strnlen.c",
 
                 "arch-arm64/bionic/__bionic_clone.S",
                 "arch-arm64/bionic/_exit_with_stack_teardown.S",
@@ -887,7 +882,9 @@ cc_library_static {
             exclude_srcs: [
                 "bionic/__memcpy_chk.cpp",
                 "bionic/strchr.cpp",
+                "bionic/strchrnul.cpp",
                 "bionic/strnlen.c",
+                "bionic/strrchr.cpp",
             ],
         },
 
@@ -1093,7 +1090,6 @@ cc_library_static {
         "bionic/mblen.cpp",
         "bionic/mbrtoc16.cpp",
         "bionic/mbrtoc32.cpp",
-        "bionic/memmem.cpp",
         "bionic/mempcpy.cpp",
         "bionic/mkdir.cpp",
         "bionic/mkfifo.cpp",
@@ -1140,7 +1136,6 @@ cc_library_static {
         "bionic/spawn.cpp",
         "bionic/stat.cpp",
         "bionic/stdlib_l.cpp",
-        "bionic/strchrnul.cpp",
         "bionic/strerror.cpp",
         "bionic/string_l.cpp",
         "bionic/strings_l.cpp",
@@ -1377,6 +1372,7 @@ cc_library_static {
 
     whole_static_libs: [
         "gwp_asan",
+        "libarm-optimized-routines-string",
         "libc_bionic_ndk",
         "libc_bootstrap",
         "libc_fortify",
@@ -1407,6 +1403,7 @@ cc_library_static {
     name: "libc_nopthread",
 
     whole_static_libs: [
+        "libarm-optimized-routines-string",
         "libc_bionic",
         "libc_bionic_ndk",
         "libc_bootstrap",
@@ -1599,7 +1596,6 @@ cc_library {
     ],
     name: "libc",
     static_ndk_lib: true,
-    export_include_dirs: ["include"],
     product_variables: {
         platform_sdk_version: {
             asflags: ["-DPLATFORM_SDK_VERSION=%d"],
@@ -1730,6 +1726,10 @@ cc_library {
     // Sorting bss symbols by size usually results in less dirty pages at run
     // time, because small symbols are grouped together.
     sort_bss_symbols_by_size: true,
+
+    lto: {
+        never: true,
+    },
 }
 
 genrule {
@@ -1777,6 +1777,7 @@ cc_library_headers {
         "//external/scudo:__subpackages__",
         "//system/core/debuggerd:__subpackages__",
         "//system/memory/libmemunreachable:__subpackages__",
+        "//vendor:__subpackages__",
     ],
     host_supported: true,
     vendor_available: true,
@@ -1798,9 +1799,13 @@ cc_library_headers {
     ],
 }
 
-// libc_headers for libasync_safe and libpropertyinfoparser
 cc_library_headers {
-    name: "libc_headers",
+    // Internal lib for use in libc_headers. Since we cannot intersect arch{}
+    // and target{} in the same module, this one specifies the arch-dependent
+    // include paths, and then libc_headers filters by target so that the
+    // headers only are included for Bionic targets.
+    name: "libc_headers_arch",
+    visibility: ["//visibility:private"],
 
     host_supported: true,
     vendor_available: true,
@@ -1813,14 +1818,6 @@ cc_library_headers {
     ],
     // used by most APEXes indirectly via libunwind_llvm
     min_sdk_version: "apex_inherit",
-    visibility: [
-        ":__subpackages__", // visible to bionic
-        // ... and only to these places (b/152668052)
-        "//external/gwp_asan",
-        "//external/libunwind_llvm",
-        "//system/core/property_service/libpropertyinfoparser",
-        "//system/extras/toolchain-extras",
-    ],
 
     no_libcrt: true,
     stl: "none",
@@ -1834,34 +1831,75 @@ cc_library_headers {
     // is correct because the headers can support any sdk_version.
     sdk_version: "1",
 
-    export_include_dirs: [
+    export_system_include_dirs: [
         "include",
         "kernel/uapi",
+        "kernel/android/scsi",
         "kernel/android/uapi",
     ],
 
     arch: {
         arm: {
-            export_include_dirs: [
-                "kernel/uapi/asm-arm",
-            ],
+            export_system_include_dirs: ["kernel/uapi/asm-arm"],
         },
         arm64: {
-            export_include_dirs: [
-                "kernel/uapi/asm-arm64",
-            ],
+            export_system_include_dirs: ["kernel/uapi/asm-arm64"],
         },
         x86: {
-            export_include_dirs: [
-                "kernel/uapi/asm-x86",
-            ],
+            export_system_include_dirs: ["kernel/uapi/asm-x86"],
         },
         x86_64: {
-            export_include_dirs: [
-                "kernel/uapi/asm-x86",
-            ],
+            export_system_include_dirs: ["kernel/uapi/asm-x86"],
         },
     },
+}
+
+cc_library_headers {
+    name: "libc_headers",
+    host_supported: true,
+    native_bridge_supported: true,
+    vendor_available: true,
+    ramdisk_available: true,
+    recovery_available: true,
+    sdk_version: "1",
+
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    // used by most APEXes indirectly via libunwind_llvm
+    min_sdk_version: "apex_inherit",
+    visibility: [
+        "//bionic:__subpackages__", // visible to bionic
+        // ... and only to these places (b/152668052)
+        "//external/arm-optimized-routines",
+        "//external/gwp_asan",
+        "//external/jemalloc_new",
+        "//external/libunwind_llvm",
+        "//external/scudo",
+        "//system/core/property_service/libpropertyinfoparser",
+        "//system/extras/toolchain-extras",
+        // TODO(b/153662223): Clean up these users that needed visibility when
+        // the implicit addition of system Bionic paths was removed.
+        "//art/tools/cpp-define-generator",
+        "//external/boringssl",
+        "//external/minijail",
+    ],
+
+    stl: "none",
+    no_libcrt: true,
+    system_shared_libs: [],
+
+    target: {
+        android: {
+            header_libs: ["libc_headers_arch"],
+            export_header_lib_headers: ["libc_headers_arch"],
+        },
+        linux_bionic: {
+            header_libs: ["libc_headers_arch"],
+            export_header_lib_headers: ["libc_headers_arch"],
+        },
+    }
 }
 
 // ========================================================
